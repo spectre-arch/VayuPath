@@ -1,0 +1,676 @@
+import json
+import re
+
+# Comprehensive Pan-India Cities with Real Geographic Bounds, Waterways, Green Corridors, CPCB Stations, Routes, and Localities
+cities_data = {
+    "delhi": {
+        "id": "delhi",
+        "name": "Delhi-NCR",
+        "state": "National Capital Region",
+        "heroAQI": 382,
+        "badge": "SEVERE",
+        "badgeCls": "bg-rose-100 text-rose-800 border-rose-300",
+        "tagline": "Capital Transit & Industrial Dust Shield",
+        "bounds": { "minLat": 28.50, "maxLat": 28.76, "minLon": 77.06, "maxLon": 77.34 },
+        "waterFeature": {
+            "name": "YAMUNA RIVER",
+            "coords": [[28.76, 77.22], [28.72, 77.23], [28.67, 77.24], [28.62, 77.26], [28.56, 77.30], [28.51, 77.33]]
+        },
+        "greenFeature": {
+            "name": "CENTRAL RIDGE FOREST RESERVE",
+            "center": [28.61, 77.17],
+            "radiusX": 65, "radiusY": 95, "angle": 0.4
+        },
+        "origin": "Connaught Place (Central Hub)",
+        "destination": "DTU, Rohini (North Campus)",
+        "routeA": {
+            "name": "Route A • Outer Ring Road (Fastest)",
+            "badge": "HIGH TOXICITY",
+            "duration": 18,
+            "dist": 14.2,
+            "dose": "78.4",
+            "notes": "⚠️ Passes through <b>Wazirabad & Azadpur choke points</b> (AQI 412). Heavy diesel particulate exposure.",
+            "points": [
+                [28.632, 77.219], [28.635, 77.235], [28.655, 77.238], [28.670, 77.232],
+                [28.705, 77.228], [28.720, 77.215], [28.730, 77.175], [28.742, 77.140], [28.750, 77.118]
+            ]
+        },
+        "routeB": {
+            "name": "Route B • VayuPath Clean Corridor",
+            "badge": "-64% DOSE",
+            "duration": 21,
+            "diff": "+3m",
+            "dist": 14.9,
+            "dose": "28.2",
+            "notes": "🍃 Diverts through <b>Ridge Forest Green Belt & Civil Lines</b> (AQI 118). Spares your lungs <b>50.2 µg toxic soot</b> today!",
+            "points": [
+                [28.632, 77.219], [28.625, 77.195], [28.620, 77.170], [28.665, 77.178],
+                [28.690, 77.185], [28.718, 77.155], [28.735, 77.128], [28.750, 77.118]
+            ]
+        },
+        "stations": [
+            { "name": "DTU (Bawana / Rohini)", "lat": 28.750, "lon": 77.118, "aqi": 392, "pm25": 248, "status": "Severe" },
+            { "name": "Anand Vihar (ISBT)", "lat": 28.650, "lon": 77.315, "aqi": 442, "pm25": 310, "status": "Hazardous" },
+            { "name": "ITO Junction", "lat": 28.630, "lon": 77.241, "aqi": 368, "pm25": 220, "status": "Very Poor" },
+            { "name": "Connaught Place (CP)", "lat": 28.632, "lon": 77.219, "aqi": 284, "pm25": 142, "status": "Poor" },
+            { "name": "R.K. Puram", "lat": 28.566, "lon": 77.178, "aqi": 345, "pm25": 195, "status": "Very Poor" },
+            { "name": "Lodhi Road / US Embassy", "lat": 28.591, "lon": 77.227, "aqi": 182, "pm25": 88, "status": "Moderate" },
+            { "name": "Punjabi Bagh", "lat": 28.670, "lon": 77.125, "aqi": 375, "pm25": 235, "status": "Very Poor" },
+            { "name": "Delhi Ridge Forest", "lat": 28.605, "lon": 77.155, "aqi": 98, "pm25": 42, "status": "Good" }
+        ],
+        "localities": [
+            { "name": "Rohini Sector 16", "category": "North Delhi Sub-District", "lat": 28.735, "lon": 77.128, "aqi": 365, "pm25": 228, "pm10": 340, "no2": 78, "advisory": "⚠️ High construction & ring road exhaust. Vulnerable individuals must use N95 respirators." },
+            { "name": "DTU North Campus / Bawana", "category": "North Delhi Industrial & Academic", "lat": 28.750, "lon": 77.118, "aqi": 392, "pm25": 248, "pm10": 365, "no2": 85, "advisory": "🚨 Severe particulate concentration from outer freight corridors. Avoid outdoor sports." },
+            { "name": "Dwarka Sector 10", "category": "South-West Delhi Sub-City", "lat": 28.582, "lon": 77.065, "aqi": 265, "pm25": 142, "pm10": 240, "no2": 52, "advisory": "⚠️ Poor air due to airport transit corridor. Brisk morning walks discouraged." },
+            { "name": "Saket / Select Citywalk", "category": "South Delhi Commercial Hub", "lat": 28.528, "lon": 77.218, "aqi": 210, "pm25": 98, "pm10": 175, "no2": 44, "advisory": "🟡 Moderate to Poor. Protected partially by southern green buffer zones." },
+            { "name": "Anand Vihar ISBT", "category": "East Delhi Interstate Terminal", "lat": 28.650, "lon": 77.315, "aqi": 442, "pm25": 310, "pm10": 480, "no2": 110, "advisory": "🛑 Hazardous! Heavy interstate diesel buses & Ghazipur border transit. Stay indoors." },
+            { "name": "Connaught Place (CP)", "category": "Central Delhi Heritage Hub", "lat": 28.632, "lon": 77.219, "aqi": 284, "pm25": 142, "pm10": 235, "no2": 68, "advisory": "⚠️ Heavy peak hour vehicular idling. Inner circle pedestrian plazas are cleaner." },
+            { "name": "Hauz Khas / IIT Delhi", "category": "South Delhi Academic Corridor", "lat": 28.545, "lon": 77.195, "aqi": 195, "pm25": 86, "pm10": 160, "no2": 38, "advisory": "🌿 Moderate. Hauz Khas deer park forest provides localized filtration." },
+            { "name": "Lutyens Delhi / Lodhi Gardens", "category": "Central Forest Buffer Zone", "lat": 28.591, "lon": 77.227, "aqi": 118, "pm25": 48, "pm10": 95, "no2": 24, "advisory": "✅ Safest green corridor in central Delhi. Protected by dense banyan canopy." },
+            { "name": "Noida Sector 62 / Electronic City", "category": "East NCR Tech Corridor", "lat": 28.625, "lon": 77.375, "aqi": 385, "pm25": 235, "pm10": 350, "no2": 88, "advisory": "⚠️ Severe emissions from NH-24 & construction dust." },
+            { "name": "Cyber City / DLF Gurugram", "category": "South-West NCR Expressway Hub", "lat": 28.495, "lon": 77.089, "aqi": 315, "pm25": 180, "pm10": 290, "no2": 74, "advisory": "⚠️ Very Poor air due to expressway congestion. Keep office HVAC filtration on high." },
+            { "name": "Karol Bagh / Pusa Road", "category": "Central-West Residential Market", "lat": 28.648, "lon": 77.185, "aqi": 318, "pm25": 185, "pm10": 285, "no2": 72, "advisory": "⚠️ Heavy commercial traffic. Pusa agricultural institute provides evening relief." },
+            { "name": "Chandni Chowk / Old Delhi", "category": "Historic Dense Settlement", "lat": 28.656, "lon": 77.230, "aqi": 395, "pm25": 252, "pm10": 370, "no2": 92, "advisory": "🚨 Severe stagnation due to narrow street canyons trapping exhaust." },
+            { "name": "Janakpuri District Centre", "category": "West Delhi Commercial Hub", "lat": 28.629, "lon": 77.082, "aqi": 290, "pm25": 155, "pm10": 255, "no2": 60, "advisory": "⚠️ Poor air. Avoid prolonged outdoor workouts during peak hours." },
+            { "name": "Punjabi Bagh Ring Road", "category": "West Delhi Transit Artery", "lat": 28.670, "lon": 77.125, "aqi": 375, "pm25": 235, "pm10": 345, "no2": 82, "advisory": "⚠️ Very Poor air. Constant heavy vehicle bypass transit." },
+            { "name": "Central Ridge Forest", "category": "Protected Aravalli Forest Spur", "lat": 28.605, "lon": 77.155, "aqi": 98, "pm25": 38, "pm10": 72, "no2": 18, "advisory": "🍃 Cleanest outdoor sanctuary in Delhi. -68% exposure compared to ring roads." }
+        ],
+        "schools": [
+            { "name": "Delhi Public School (DPS)", "desc": "Mathura Road • Severe Exposure", "aqi": 390, "badge": "CANCEL SPORTS", "badgeCls": "bg-rose-950 text-rose-300 border-rose-800" },
+            { "name": "Modern School Barakhamba", "desc": "Central Delhi • Moderate Risk", "aqi": 290, "badge": "HEPA ON MAX", "badgeCls": "bg-amber-950 text-amber-300 border-amber-800" },
+            { "name": "Kendriya Vidyalaya (Cantt)", "desc": "Ridge Area • Clean Green Pocket", "aqi": 110, "badge": "CLEAR TO PLAY", "badgeCls": "bg-emerald-950 text-emerald-300 border-emerald-800" }
+        ]
+    },
+    "bengaluru": {
+        "id": "bengaluru",
+        "name": "Bengaluru",
+        "state": "Karnataka",
+        "heroAQI": 84,
+        "badge": "CLEAN AIR",
+        "badgeCls": "bg-emerald-100 text-emerald-800 border-emerald-300",
+        "tagline": "Garden City Tech Corridors & Lake Buffers",
+        "bounds": { "minLat": 12.86, "maxLat": 13.06, "minLon": 77.50, "maxLon": 77.72 },
+        "waterFeature": {
+            "name": "BELLANDUR & VARTHUR LAKES",
+            "coords": [[12.93, 77.66], [12.94, 77.68], [12.95, 77.71], [12.96, 77.74]]
+        },
+        "greenFeature": {
+            "name": "CUBBON PARK & LALBAGH BOTANICAL",
+            "center": [12.972, 77.592],
+            "radiusX": 60, "radiusY": 80, "angle": -0.2
+        },
+        "origin": "MG Road / Brigade Road (Central Hub)",
+        "destination": "ITPL, Whitefield Tech Park",
+        "routeA": {
+            "name": "Route A • Old Airport Road / Marathahalli",
+            "badge": "MODERATE CHOKE",
+            "duration": 48,
+            "dist": 18.2,
+            "dose": "41.6",
+            "notes": "⚠️ Bottleneck at <b>Marathahalli Bridge & Silk Board feeder</b>. Heavy bus idling & road dust.",
+            "points": [
+                [12.974, 77.608], [12.965, 77.635], [12.958, 77.660], [12.954, 77.698],
+                [12.968, 77.728], [12.985, 77.732]
+            ]
+        },
+        "routeB": {
+            "name": "Route B • Indiranagar - HAL Lake Green Bypass",
+            "badge": "-58% DOSE",
+            "duration": 52,
+            "diff": "+4m",
+            "dist": 19.1,
+            "dose": "17.4",
+            "notes": "🍃 Diverts through <b>Defence Colony canopy & Vimanapura Green Buffer</b>. 58% less diesel exposure!",
+            "points": [
+                [12.974, 77.608], [12.978, 77.640], [12.969, 77.658], [12.972, 77.685],
+                [12.978, 77.715], [12.985, 77.732]
+            ]
+        },
+        "stations": [
+            { "name": "BTM Layout CPCB", "lat": 12.915, "lon": 77.610, "aqi": 98, "pm25": 42, "status": "Satisfactory" },
+            { "name": "Silk Board Junction", "lat": 12.917, "lon": 77.623, "aqi": 162, "pm25": 78, "status": "Moderate" },
+            { "name": "Hebbal Flyover", "lat": 13.035, "lon": 77.592, "aqi": 115, "pm25": 54, "status": "Moderate" },
+            { "name": "Whitefield Kadugodi", "lat": 12.990, "lon": 77.755, "aqi": 88, "pm25": 38, "status": "Good" },
+            { "name": "City Railway Station", "lat": 12.978, "lon": 77.568, "aqi": 105, "pm25": 48, "status": "Moderate" },
+            { "name": "Cubbon Park Sanctuary", "lat": 12.975, "lon": 77.592, "aqi": 42, "pm25": 18, "status": "Good" }
+        ],
+        "localities": [
+            { "name": "Indiranagar 100ft Road", "category": "East Bengaluru Canopy Hub", "lat": 12.972, "lon": 77.640, "aqi": 68, "pm25": 28, "pm10": 58, "no2": 24, "advisory": "🍃 Very Clean. Dense avenue trees filter vehicular exhaust efficiently." },
+            { "name": "Koramangala 4th Block", "category": "South-East Startup District", "lat": 12.934, "lon": 77.626, "aqi": 88, "pm25": 38, "pm10": 76, "no2": 32, "advisory": "✅ Good air quality. Moderate traffic during evening rush hours." },
+            { "name": "Whitefield / ITPL Main Gate", "category": "East IT Hub & Metro Terminal", "lat": 12.985, "lon": 77.732, "aqi": 92, "pm25": 41, "pm10": 82, "no2": 36, "advisory": "🟡 Moderate dust due to peripheral ring road expansion." },
+            { "name": "HSR Layout Sector 1", "category": "South Residential Tech Hub", "lat": 12.912, "lon": 77.644, "aqi": 78, "pm25": 32, "pm10": 68, "no2": 28, "advisory": "✅ Clean park-adjacent zone. Ideal for early morning cycling." },
+            { "name": "Silk Board Junction", "category": "South Transit Choke Node", "lat": 12.917, "lon": 77.623, "aqi": 162, "pm25": 78, "pm10": 138, "no2": 62, "advisory": "⚠️ Heavy vehicle idling exhaust. Roll up car windows." },
+            { "name": "Electronic City Phase 1", "category": "Elevated Expressway Tech Park", "lat": 12.845, "lon": 77.665, "aqi": 82, "pm25": 35, "pm10": 72, "no2": 30, "advisory": "✅ Protected by campus tree belts and elevated transit flyover." },
+            { "name": "Malleshwaram 8th Main", "category": "North-West Heritage Residential", "lat": 13.003, "lon": 77.568, "aqi": 62, "pm25": 24, "pm10": 52, "no2": 22, "advisory": "🍃 Clean and shaded. One of Bengaluru's greenest living sectors." },
+            { "name": "Hebbal Outer Ring Road", "category": "North Transit & Lake Flyover", "lat": 13.035, "lon": 77.592, "aqi": 115, "pm25": 54, "pm10": 98, "no2": 45, "advisory": "🟡 Moderate air due to airport taxi traffic and highway freight." },
+            { "name": "Jayanagar 4th Block", "category": "South Heritage Green Sector", "lat": 12.928, "lon": 77.583, "aqi": 56, "pm25": 22, "pm10": 48, "no2": 19, "advisory": "🍃 Pristine residential sector with broad pedestrian tree cover." },
+            { "name": "Marathahalli Bridge", "category": "East Ring Road Bottleneck", "lat": 12.955, "lon": 77.701, "aqi": 145, "pm25": 68, "pm10": 124, "no2": 54, "advisory": "⚠️ Congestion hotspot. High diesel bus particulate drift." },
+            { "name": "Cubbon Park Green Core", "category": "Central Botanical Sanctuary", "lat": 12.975, "lon": 77.592, "aqi": 42, "pm25": 18, "pm10": 36, "no2": 14, "advisory": "🌟 Pure Air Oasis. 300 acres of century-old canopy." }
+        ],
+        "schools": [
+            { "name": "Bishop Cotton Boys School", "desc": "Residency Road • Moderate Traffic", "aqi": 82, "badge": "CLEAR TO PLAY", "badgeCls": "bg-emerald-950 text-emerald-300 border-emerald-800" },
+            { "name": "National Public School (Indiranagar)", "desc": "12th Main • Clean Green Belt", "aqi": 64, "badge": "PRISTINE AIR", "badgeCls": "bg-emerald-950 text-emerald-300 border-emerald-800" },
+            { "name": "Delhi Public School (Bangalore South)", "desc": "Kanakapura Road • Lake Buffer", "aqi": 72, "badge": "CLEAR TO PLAY", "badgeCls": "bg-emerald-950 text-emerald-300 border-emerald-800" }
+        ]
+    },
+    "mumbai": {
+        "id": "mumbai",
+        "name": "Mumbai",
+        "state": "Maharashtra",
+        "heroAQI": 168,
+        "badge": "MODERATE",
+        "badgeCls": "bg-yellow-100 text-yellow-800 border-yellow-300",
+        "tagline": "Arabian Sea Coastal Breezes & Coastal Road",
+        "bounds": { "minLat": 18.90, "maxLat": 19.26, "minLon": 72.78, "maxLon": 73.00 },
+        "waterFeature": {
+            "name": "ARABIAN SEA / MARINE DRIVE SHORELINE",
+            "coords": [[19.24, 72.80], [19.12, 72.81], [19.00, 72.82], [18.95, 72.81], [18.91, 72.82]]
+        },
+        "greenFeature": {
+            "name": "SANJAY GANDHI NATIONAL PARK (SGNP)",
+            "center": [19.22, 72.91],
+            "radiusX": 70, "radiusY": 90, "angle": 0.1
+        },
+        "origin": "Nariman Point / Fort (South Hub)",
+        "destination": "Bandra-Kurla Complex (BKC)",
+        "routeA": {
+            "name": "Route A • Western Express Highway / Sion-Dharavi Choke",
+            "badge": "HIGH TOXICITY",
+            "duration": 42,
+            "dist": 19.4,
+            "dose": "58.2",
+            "notes": "⚠️ Trapped vehicle exhaust along <b>Dharavi & Sion flyover bottleneck</b> (AQI 224).",
+            "points": [
+                [18.928, 72.828], [18.960, 72.825], [18.995, 72.835], [19.035, 72.855],
+                [19.055, 72.868], [19.065, 72.865]
+            ]
+        },
+        "routeB": {
+            "name": "Route B • Coastal Sea Link Breeze Corridor",
+            "badge": "-62% DOSE",
+            "duration": 34,
+            "diff": "-8m",
+            "dist": 17.8,
+            "dose": "22.1",
+            "notes": "🌊 Marine maritime breeze sweeps particulate out to sea! 62% less PM2.5 intake.",
+            "points": [
+                [18.928, 72.828], [18.945, 72.821], [18.980, 72.810], [19.025, 72.815],
+                [19.045, 72.838], [19.065, 72.865]
+            ]
+        },
+        "stations": [
+            { "name": "Bandra Kurla Complex (BKC)", "lat": 19.065, "lon": 77.865, "aqi": 218, "pm25": 115, "status": "Poor" },
+            { "name": "Colaba Coastal Base", "lat": 18.905, "lon": 72.815, "aqi": 94, "pm25": 42, "status": "Satisfactory" },
+            { "name": "Chhatrapati Shivaji Terminal", "lat": 18.940, "lon": 72.835, "aqi": 185, "pm25": 92, "status": "Moderate" },
+            { "name": "Borivali SGNP Forest", "lat": 19.230, "lon": 72.860, "aqi": 75, "pm25": 32, "status": "Good" },
+            { "name": "Kurla West Transit", "lat": 19.070, "lon": 72.880, "aqi": 242, "pm25": 132, "status": "Poor" }
+        ],
+        "localities": [
+            { "name": "Bandra Kurla Complex (BKC)", "category": "Prime Financial & Commercial Hub", "lat": 19.065, "lon": 72.865, "aqi": 218, "pm25": 115, "pm10": 188, "no2": 68, "advisory": "⚠️ Heavy commercial traffic & high-rise density traps evening emissions." },
+            { "name": "Marine Drive / Nariman Point", "category": "South Coast Seafront Promenade", "lat": 18.932, "lon": 72.822, "aqi": 88, "pm25": 38, "pm10": 74, "no2": 26, "advisory": "🌊 Clean oceanic sea breeze keeps particulate counts low." },
+            { "name": "Bandra West / Carter Road", "category": "Coastal Promenade Residential", "lat": 19.060, "lon": 72.825, "aqi": 96, "pm25": 42, "pm10": 80, "no2": 29, "advisory": "✅ Pleasant coastal corridor. Excellent for outdoor fitness." },
+            { "name": "Andheri East / MIDC Industrial", "category": "Commercial & Metro Junction", "lat": 19.115, "lon": 72.870, "aqi": 235, "pm25": 128, "pm10": 210, "no2": 72, "advisory": "⚠️ Severe congestion & dust near Metro 7 / WEH junctions." },
+            { "name": "Powai Lake / IIT Bombay", "category": "Lake Sanctuary & Academic", "lat": 19.125, "lon": 72.905, "aqi": 112, "pm25": 52, "pm10": 98, "no2": 34, "advisory": "🌿 Protected partly by hills and water body. Moderate air." },
+            { "name": "Juhu Beach / Tara Road", "category": "West Coastal Buffer Zone", "lat": 19.100, "lon": 72.826, "aqi": 92, "pm25": 40, "pm10": 78, "no2": 28, "advisory": "✅ Strong onshore breeze mitigates suburban smog." },
+            { "name": "Dharavi / Sion Junction", "category": "Central Urban Density Hotspot", "lat": 19.040, "lon": 72.855, "aqi": 255, "pm25": 142, "pm10": 230, "no2": 78, "advisory": "⚠️ Poor air quality due to intersection of Eastern and Western freight corridors." },
+            { "name": "Sanjay Gandhi National Park (Borivali)", "category": "Protected Forest Sanctuary", "lat": 19.225, "lon": 72.910, "aqi": 68, "pm25": 28, "pm10": 56, "no2": 18, "advisory": "🍃 Pristine forest oasis. Deep tree canopy cleans suburban airflow." }
+        ],
+        "schools": [
+            { "name": "Dhirubhai Ambani International", "desc": "BKC • Heavy Traffic Zone", "aqi": 210, "badge": "HEPA ON MAX", "badgeCls": "bg-amber-950 text-amber-300 border-amber-800" },
+            { "name": "Bombay Scottish School", "desc": "Mahim • Coastal Buffer", "aqi": 112, "badge": "MODERATE RISK", "badgeCls": "bg-yellow-950 text-yellow-300 border-yellow-800" },
+            { "name": "The Cathedral and John Connon", "desc": "Fort • Marine Air Corridor", "aqi": 92, "badge": "CLEAR TO PLAY", "badgeCls": "bg-emerald-950 text-emerald-300 border-emerald-800" }
+        ]
+    },
+    "kolkata": {
+        "id": "kolkata",
+        "name": "Kolkata",
+        "state": "West Bengal",
+        "heroAQI": 232,
+        "badge": "POOR",
+        "badgeCls": "bg-amber-100 text-amber-800 border-amber-300",
+        "tagline": "Hooghly River & Maidan Green Lung Corridors",
+        "bounds": { "minLat": 22.45, "maxLat": 22.68, "minLon": 88.28, "maxLon": 88.48 },
+        "waterFeature": {
+            "name": "HOOGHLY RIVER (GANGES)",
+            "coords": [[22.66, 88.35], [22.60, 88.35], [22.56, 88.33], [22.52, 88.32], [22.48, 88.30]]
+        },
+        "greenFeature": {
+            "name": "MAIDAN & VICTORIA MEMORIAL GREENS",
+            "center": [22.545, 88.342],
+            "radiusX": 55, "radiusY": 80, "angle": 0.05
+        },
+        "origin": "Howrah Railway Station",
+        "destination": "Salt Lake Sector V (Tech Hub)",
+        "routeA": {
+            "name": "Route A • Central Avenue / MG Road Commercial Choke",
+            "badge": "VERY POOR",
+            "duration": 36,
+            "dist": 12.8,
+            "dose": "64.8",
+            "notes": "⚠️ Congestion in old trading alleys and diesel bus idling across Sealdah.",
+            "points": [
+                [22.585, 88.342], [22.580, 88.360], [22.570, 88.375], [22.568, 88.410],
+                [22.572, 88.432]
+            ]
+        },
+        "routeB": {
+            "name": "Route B • Strand Road / Red Road Maidan Clean Bypass",
+            "badge": "-54% DOSE",
+            "duration": 39,
+            "diff": "+3m",
+            "dist": 13.9,
+            "dose": "29.8",
+            "notes": "🍃 Passes wide avenues of <b>Kolkata Maidan & Victoria canopy</b>. 54% less soot!",
+            "points": [
+                [22.585, 88.342], [22.560, 88.338], [22.545, 88.345], [22.548, 88.380],
+                [22.560, 88.415], [22.572, 88.432]
+            ]
+        },
+        "stations": [
+            { "name": "Victoria Memorial Sensor", "lat": 22.545, "lon": 88.342, "aqi": 142, "pm25": 68, "status": "Moderate" },
+            { "name": "Rabindra Bharati University", "lat": 22.625, "lon": 88.380, "aqi": 278, "pm25": 156, "status": "Poor" },
+            { "name": "Salt Lake Sector V", "lat": 22.572, "lon": 88.432, "aqi": 188, "pm25": 96, "status": "Moderate" },
+            { "name": "Ballygunge Circular", "lat": 22.525, "lon": 88.365, "aqi": 215, "pm25": 118, "status": "Poor" }
+        ],
+        "localities": [
+            { "name": "Salt Lake Sector V", "category": "East IT Hub & Metro Corridor", "lat": 22.572, "lon": 88.432, "aqi": 188, "pm25": 96, "pm10": 164, "no2": 52, "advisory": "🟡 Moderate to Poor. Electronic complex breezes provide slight dispersion." },
+            { "name": "Park Street / Camac Street", "category": "Central Heritage Dining Corridor", "lat": 22.552, "lon": 88.352, "aqi": 225, "pm25": 124, "pm10": 195, "no2": 64, "advisory": "⚠️ High taxi exhaust during evening hours. Use clean air corridors." },
+            { "name": "New Town Rajarhat Action Area 1", "category": "Planned Smart City Suburb", "lat": 22.588, "lon": 88.465, "aqi": 165, "pm25": 82, "pm10": 145, "no2": 42, "advisory": "🟡 Moderate. Open lake buffers in Eco Park reduce particulate density." },
+            { "name": "Howrah Station / Foreshore Rd", "category": "Transit & Ferry Gateway", "lat": 22.585, "lon": 88.342, "aqi": 285, "pm25": 168, "pm10": 255, "no2": 76, "advisory": "🚨 Heavy diesel ferry & bus idling. Keep travel brisk." },
+            { "name": "Alipore / National Library", "category": "South Green Residential Ward", "lat": 22.532, "lon": 88.332, "aqi": 128, "pm25": 58, "pm10": 110, "no2": 32, "advisory": "✅ Green canopy buffer from Zoological Garden & Agri-Horticultural society." },
+            { "name": "Gariahat Crossing", "category": "South Commercial & Market Hub", "lat": 22.518, "lon": 88.368, "aqi": 240, "pm25": 138, "pm10": 215, "no2": 68, "advisory": "⚠️ Intense vehicular pedestrian conflict and flyover smog entrapment." }
+        ],
+        "schools": [
+            { "name": "La Martiniere for Boys", "desc": "Rawdon Street • High Density", "aqi": 220, "badge": "HEPA ON MAX", "badgeCls": "bg-amber-950 text-amber-300 border-amber-800" },
+            { "name": "South Point High School", "desc": "Ballygunge • Moderate Air", "aqi": 205, "badge": "REDUCE OUTDOOR", "badgeCls": "bg-amber-950 text-amber-300 border-amber-800" },
+            { "name": "The Heritage School", "desc": "Anandapur • Green Campus", "aqi": 145, "badge": "CLEAR TO PLAY", "badgeCls": "bg-yellow-950 text-yellow-300 border-yellow-800" }
+        ]
+    },
+    "hyderabad": {
+        "id": "hyderabad",
+        "name": "Hyderabad",
+        "state": "Telangana",
+        "heroAQI": 128,
+        "badge": "MODERATE",
+        "badgeCls": "bg-yellow-100 text-yellow-800 border-yellow-300",
+        "tagline": "Hussain Sagar Breeze & Hitec City Corridors",
+        "bounds": { "minLat": 17.30, "maxLat": 17.52, "minLon": 78.30, "maxLon": 78.58 },
+        "waterFeature": {
+            "name": "HUSSAIN SAGAR & MUSI RIVER",
+            "coords": [[17.42, 78.47], [17.43, 78.48], [17.41, 78.49], [17.37, 78.48], [17.36, 78.52]]
+        },
+        "greenFeature": {
+            "name": "KBR NATIONAL PARK (JUBILEE HILLS)",
+            "center": [17.425, 78.415],
+            "radiusX": 55, "radiusY": 65, "angle": 0.2
+        },
+        "origin": "Charminar / Old City Cultural Core",
+        "destination": "Hitec City / Cyber Towers (West Hub)",
+        "routeA": {
+            "name": "Route A • Mehdipatnam / Tolichowki Flyover Choke",
+            "badge": "POOR TRAFFIC",
+            "duration": 38,
+            "dist": 16.5,
+            "dose": "48.5",
+            "notes": "⚠️ Bottleneck at <b>Tolichowki junction & commercial market stalls</b>.",
+            "points": [
+                [17.361, 78.474], [17.385, 78.442], [17.398, 78.410], [17.420, 78.388],
+                [17.448, 78.375]
+            ]
+        },
+        "routeB": {
+            "name": "Route B • Banjara Hills / KBR Park Green Bypass",
+            "badge": "-56% DOSE",
+            "duration": 42,
+            "diff": "+4m",
+            "dist": 17.2,
+            "dose": "21.3",
+            "notes": "🍃 Bypasses through <b>KBR National Park canopy & Jubilee Hills Road 36</b>.",
+            "points": [
+                [17.361, 78.474], [17.405, 78.460], [17.422, 78.435], [17.430, 78.405],
+                [17.442, 78.380], [17.448, 78.375]
+            ]
+        },
+        "stations": [
+            { "name": "Sanathnagar CPCB", "lat": 17.458, "lon": 78.442, "aqi": 164, "pm25": 82, "status": "Moderate" },
+            { "name": "Zoo Park Bahadurpura", "lat": 17.350, "lon": 78.452, "aqi": 142, "pm25": 68, "status": "Moderate" },
+            { "name": "ICRISAT Patancheru", "lat": 17.510, "lon": 78.275, "aqi": 155, "pm25": 74, "status": "Moderate" },
+            { "name": "KBR Park Forest Core", "lat": 17.425, "lon": 78.415, "aqi": 62, "pm25": 26, "status": "Good" }
+        ],
+        "localities": [
+            { "name": "Hitec City / Cyber Towers", "category": "IT & Innovation Corridor", "lat": 17.448, "lon": 78.375, "aqi": 118, "pm25": 54, "pm10": 98, "no2": 38, "advisory": "🟡 Moderate. Evening peak tech cabs generate short particulate surges." },
+            { "name": "Gachibowli Financial District", "category": "High-Tech Corporate Enclave", "lat": 17.422, "lon": 78.345, "aqi": 105, "pm25": 48, "pm10": 88, "no2": 32, "advisory": "✅ Good to Moderate. Wide tree-lined boulevards promote air dispersal." },
+            { "name": "Jubilee Hills Road 36", "category": "Upscale Elevated Ridge Ward", "lat": 17.432, "lon": 78.405, "aqi": 78, "pm25": 32, "pm10": 68, "no2": 24, "advisory": "🍃 Very Clean. Protected by KBR forest reserve breezes." },
+            { "name": "Secunderabad Clock Tower", "category": "North Transit & Commercial Junction", "lat": 17.440, "lon": 78.500, "aqi": 168, "pm25": 84, "pm10": 142, "no2": 52, "advisory": "⚠️ Busy railway hub. Heavy bus & auto emissions." },
+            { "name": "Banjara Hills Road 12", "category": "Green Valley Residential", "lat": 17.415, "lon": 78.440, "aqi": 82, "pm25": 36, "pm10": 72, "no2": 26, "advisory": "✅ Clean air corridor shielded by natural rocky hill canopies." },
+            { "name": "Charminar Heritage Plaza", "category": "Walled City Pedestrian Core", "lat": 17.361, "lon": 78.474, "aqi": 158, "pm25": 78, "pm10": 134, "no2": 48, "advisory": "🟡 Moderate to Poor due to dense surrounding bazaar traffic." }
+        ],
+        "schools": [
+            { "name": "Hyderabad Public School (Begumpet)", "desc": "Sardar Patel Road • Large Green Campus", "aqi": 110, "badge": "CLEAR TO PLAY", "badgeCls": "bg-emerald-950 text-emerald-300 border-emerald-800" },
+            { "name": "Chirec International (Gachibowli)", "desc": "Botanical Garden Road", "aqi": 95, "badge": "CLEAR TO PLAY", "badgeCls": "bg-emerald-950 text-emerald-300 border-emerald-800" },
+            { "name": "Oakridge International", "desc": "Khajaguda Hills • Elevated Air", "aqi": 88, "badge": "PRISTINE AIR", "badgeCls": "bg-emerald-950 text-emerald-300 border-emerald-800" }
+        ]
+    },
+    "chennai": {
+        "id": "chennai",
+        "name": "Chennai",
+        "state": "Tamil Nadu",
+        "heroAQI": 92,
+        "badge": "CLEAN AIR",
+        "badgeCls": "bg-emerald-100 text-emerald-800 border-emerald-300",
+        "tagline": "Bay of Bengal Sea Breeze & Guindy National Park",
+        "bounds": { "minLat": 12.92, "maxLat": 13.15, "minLon": 80.12, "maxLon": 80.32 },
+        "waterFeature": {
+            "name": "BAY OF BENGAL COASTLINE & ADYAR RIVER",
+            "coords": [[13.14, 80.29], [13.08, 80.28], [13.00, 80.26], [12.98, 80.26], [12.92, 80.25]]
+        },
+        "greenFeature": {
+            "name": "GUINDY NATIONAL PARK SANCTUARY",
+            "center": [13.005, 80.220],
+            "radiusX": 50, "radiusY": 65, "angle": 0.1
+        },
+        "origin": "Chennai Central (Puratchi Thalaivar)",
+        "destination": "OMR Tidel Park (IT Expressway)",
+        "routeA": {
+            "name": "Route A • Anna Salai / Saidapet Highway Choke",
+            "badge": "MODERATE CHOKE",
+            "duration": 34,
+            "dist": 15.2,
+            "dose": "38.2",
+            "notes": "⚠️ Traffic build-up along <b>Saidapet bridge & Guindy industrial nexus</b>.",
+            "points": [
+                [13.082, 80.275], [13.055, 80.255], [13.025, 80.228], [12.992, 80.245],
+                [12.980, 80.248]
+            ]
+        },
+        "routeB": {
+            "name": "Route B • Marina Beach / Santhome Coastal Air Corridor",
+            "badge": "-60% DOSE",
+            "duration": 37,
+            "diff": "+3m",
+            "dist": 16.0,
+            "dose": "15.3",
+            "notes": "🌊 Strong Bay of Bengal sea breeze blows particulate inland! 60% lower dose.",
+            "points": [
+                [13.082, 80.275], [13.055, 80.282], [13.030, 80.278], [12.998, 80.260],
+                [12.980, 80.248]
+            ]
+        },
+        "stations": [
+            { "name": "Alandur CPCB Bus Depot", "lat": 13.002, "lon": 80.205, "aqi": 122, "pm25": 58, "status": "Moderate" },
+            { "name": "Manali Petrochemical Base", "lat": 13.165, "lon": 80.260, "aqi": 185, "pm25": 94, "status": "Moderate" },
+            { "name": "Velachery Residential", "lat": 12.975, "lon": 80.218, "aqi": 84, "pm25": 36, "status": "Good" },
+            { "name": "Guindy Forest Reserve", "lat": 13.005, "lon": 80.220, "aqi": 46, "pm25": 19, "status": "Good" }
+        ],
+        "localities": [
+            { "name": "OMR Tidel Park / Tharamani", "category": "IT Highway & Metro Gateway", "lat": 12.980, "lon": 80.248, "aqi": 88, "pm25": 38, "pm10": 74, "no2": 26, "advisory": "✅ Clean coastal tech corridor. Favorable sea breeze circulation." },
+            { "name": "Marina Beach Promenade", "category": "World's 2nd Longest Urban Beach", "lat": 13.055, "lon": 80.282, "aqi": 52, "pm25": 22, "pm10": 46, "no2": 16, "advisory": "🌟 Exceptional coastal air. Ideal for morning jogging." },
+            { "name": "Besant Nagar / Elliot's Beach", "category": "South Coastal Residential", "lat": 12.998, "lon": 80.268, "aqi": 58, "pm25": 24, "pm10": 50, "no2": 18, "advisory": "🍃 Very Clean. Steady sea breeze sweeps away vehicular pollutants." },
+            { "name": "T. Nagar / Pondy Bazaar", "category": "Dense Commercial Retail Hub", "lat": 13.040, "lon": 80.233, "aqi": 142, "pm25": 68, "pm10": 122, "no2": 48, "advisory": "🟡 Moderate to Poor. High auto-rickshaw density and stop-and-go idling." },
+            { "name": "Anna Nagar Roundtana", "category": "Planned Residential Sector", "lat": 13.085, "lon": 80.215, "aqi": 94, "pm25": 41, "pm10": 78, "no2": 28, "advisory": "✅ Good air quality. Well-planned avenue trees mitigate dust." },
+            { "name": "Guindy National Park Area", "category": "Urban Protected Forest Lung", "lat": 13.005, "lon": 80.220, "aqi": 46, "pm25": 19, "pm10": 38, "no2": 12, "advisory": "🌿 Natural sanctuary within city boundaries. -70% particulate load." }
+        ],
+        "schools": [
+            { "name": "Padma Seshadri Bala Bhavan (KK Nagar)", "desc": "Green Campus Enclave", "aqi": 82, "badge": "CLEAR TO PLAY", "badgeCls": "bg-emerald-950 text-emerald-300 border-emerald-800" },
+            { "name": "Don Bosco Mat. Hr. Sec. (Egmore)", "desc": "Central Metro Belt", "aqi": 105, "badge": "MODERATE AIR", "badgeCls": "bg-yellow-950 text-yellow-300 border-yellow-800" },
+            { "name": "The School KFI (Besant Nagar)", "desc": "Coastal Eco Sanctuary", "aqi": 55, "badge": "PRISTINE AIR", "badgeCls": "bg-emerald-950 text-emerald-300 border-emerald-800" }
+        ]
+    },
+    "pune": {
+        "id": "pune",
+        "name": "Pune",
+        "state": "Maharashtra",
+        "heroAQI": 136,
+        "badge": "MODERATE",
+        "badgeCls": "bg-yellow-100 text-yellow-800 border-yellow-300",
+        "tagline": "Deccan Plateau & Mula-Mutha River Corridors",
+        "bounds": { "minLat": 18.42, "maxLat": 18.64, "minLon": 73.74, "maxLon": 73.98 },
+        "waterFeature": {
+            "name": "MULA-MUTHA RIVER SPREAD",
+            "coords": [[18.57, 73.80], [18.54, 73.84], [18.53, 73.88], [18.54, 73.94]]
+        },
+        "greenFeature": {
+            "name": "ARAI TEKDI / VETAL HILL FOREST",
+            "center": [18.520, 73.815],
+            "radiusX": 50, "radiusY": 60, "angle": -0.3
+        },
+        "origin": "Pune Junction / Shivajinagar",
+        "destination": "Hinjawadi Phase 1 IT Park",
+        "routeA": {
+            "name": "Route A • Aundh-Ravet Expressway Flyover Choke",
+            "badge": "MODERATE CHOKE",
+            "duration": 35,
+            "dist": 16.4,
+            "dose": "44.6",
+            "notes": "⚠️ Heavy vehicle bottleneck at <b>Wakad bridge junction & highway transit</b>.",
+            "points": [
+                [18.530, 73.850], [18.555, 73.815], [18.580, 73.775], [18.595, 73.738]
+            ]
+        },
+        "routeB": {
+            "name": "Route B • Pashan Lake / Baner Hill Green Corridor",
+            "badge": "-58% DOSE",
+            "duration": 39,
+            "diff": "+4m",
+            "dist": 17.5,
+            "dose": "18.7",
+            "notes": "🍃 Winds around <b>Pashan Lake bird sanctuary & Baner Biodiversity Park</b>.",
+            "points": [
+                [18.530, 73.850], [18.535, 73.805], [18.545, 73.785], [18.575, 73.765],
+                [18.595, 73.738]
+            ]
+        },
+        "stations": [
+            { "name": "Shivajinagar IITM", "lat": 18.530, "lon": 73.850, "aqi": 158, "pm25": 78, "status": "Moderate" },
+            { "name": "Pashan SAFAR Observatory", "lat": 18.540, "lon": 73.790, "aqi": 82, "pm25": 36, "status": "Good" },
+            { "name": "Bhosari Industrial PCMC", "lat": 18.625, "lon": 73.840, "aqi": 210, "pm25": 112, "status": "Poor" },
+            { "name": "Hinjawadi IT Gate", "lat": 18.595, "lon": 73.738, "aqi": 125, "pm25": 58, "status": "Moderate" }
+        ],
+        "localities": [
+            { "name": "Hinjawadi Phase 1", "category": "Mega Tech Park Gateway", "lat": 18.595, "lon": 73.738, "aqi": 125, "pm25": 58, "pm10": 105, "no2": 38, "advisory": "🟡 Moderate. Heavy cab movements during office shifts." },
+            { "name": "Koregaon Park (KP)", "category": "Lush Canopy Heritage Suburb", "lat": 18.538, "lon": 73.895, "aqi": 85, "pm25": 38, "pm10": 74, "no2": 26, "advisory": "🍃 Dense banyan canopy lanes keep particulate values consistently low." },
+            { "name": "Kothrud / Paud Road", "category": "West Residential Foothill Hub", "lat": 18.508, "lon": 73.808, "aqi": 110, "pm25": 50, "pm10": 92, "no2": 34, "advisory": "✅ Clean air aided by evening hill breeze from Vetal Tekdi." },
+            { "name": "Baner / Balewadi High Street", "category": "Modern Tech Commercial Ward", "lat": 18.565, "lon": 73.778, "aqi": 118, "pm25": 54, "pm10": 98, "no2": 36, "advisory": "🟡 Moderate air. High street traffic during evening weekends." },
+            { "name": "Vetal Tekdi Hilltop", "category": "Highest Natural Hill Sanctuary", "lat": 18.520, "lon": 73.815, "aqi": 48, "pm25": 20, "pm10": 42, "no2": 14, "advisory": "🌟 Pure Air Sanctuary. Unmatched oxygen-rich hill trails." }
+        ],
+        "schools": [
+            { "name": "The Bishop's School (Camp)", "desc": "Cantonment Green Belt", "aqi": 98, "badge": "CLEAR TO PLAY", "badgeCls": "bg-emerald-950 text-emerald-300 border-emerald-800" },
+            { "name": "Loyola High School (Pashan)", "desc": "Pashan Valley Corridor", "aqi": 75, "badge": "PRISTINE AIR", "badgeCls": "bg-emerald-950 text-emerald-300 border-emerald-800" },
+            { "name": "Mercedes-Benz International (Hinjawadi)", "desc": "Tech Park Edge", "aqi": 115, "badge": "MODERATE AIR", "badgeCls": "bg-yellow-950 text-yellow-300 border-yellow-800" }
+        ]
+    },
+    "lucknow": {
+        "id": "lucknow",
+        "name": "Lucknow",
+        "state": "Uttar Pradesh",
+        "heroAQI": 312,
+        "badge": "VERY POOR",
+        "badgeCls": "bg-rose-100 text-rose-800 border-rose-300",
+        "tagline": "Gomti River Valley & Indo-Gangetic Basin",
+        "bounds": { "minLat": 26.75, "maxLat": 26.96, "minLon": 80.85, "maxLon": 81.05 },
+        "waterFeature": {
+            "name": "GOMTI RIVER MEANDER",
+            "coords": [[26.91, 80.90], [26.88, 80.93], [26.86, 80.95], [26.84, 80.98]]
+        },
+        "greenFeature": {
+            "name": "JANESHWAR MISHRA PARK (ASIA'S LARGEST)",
+            "center": [26.835, 80.990],
+            "radiusX": 60, "radiusY": 80, "angle": 0.2
+        },
+        "origin": "Charbagh Railway Station",
+        "destination": "Gomti Nagar Extension / Shaheed Path",
+        "routeA": {
+            "name": "Route A • Vidhan Sabha / Hazratganj Transit Choke",
+            "badge": "SEVERE CHOKE",
+            "duration": 26,
+            "dist": 11.8,
+            "dose": "68.2",
+            "notes": "⚠️ High auto-rickshaw density and narrow intersection idling across Hazratganj.",
+            "points": [
+                [26.832, 80.925], [26.848, 80.942], [26.852, 80.970], [26.845, 81.010]
+            ]
+        },
+        "routeB": {
+            "name": "Route B • Gomti Riverfront & Janeshwar Park Clean Corridor",
+            "badge": "-62% DOSE",
+            "duration": 29,
+            "diff": "+3m",
+            "dist": 12.6,
+            "dose": "25.9",
+            "notes": "🍃 Diverts through <b>Gomti Riverfront green buffer & 376-acre Janeshwar park</b>.",
+            "points": [
+                [26.832, 80.925], [26.860, 80.938], [26.865, 80.965], [26.838, 80.995],
+                [26.845, 81.010]
+            ]
+        },
+        "stations": [
+            { "name": "Talkatora Industrial CPCB", "lat": 26.825, "lon": 80.890, "aqi": 348, "pm25": 210, "status": "Severe" },
+            { "name": "Lalbagh Commercial Hub", "lat": 26.848, "lon": 80.938, "aqi": 325, "pm25": 195, "status": "Very Poor" },
+            { "name": "BR Ambedkar Gomti Nagar", "lat": 26.855, "lon": 80.995, "aqi": 210, "pm25": 105, "status": "Poor" },
+            { "name": "Kukrail Reserve Forest", "lat": 26.905, "lon": 80.985, "aqi": 115, "pm25": 54, "status": "Moderate" }
+        ],
+        "localities": [
+            { "name": "Gomti Nagar / Patrakar Puram", "category": "Planned Residential Commercial", "lat": 26.855, "lon": 80.995, "aqi": 210, "pm25": 105, "pm10": 178, "no2": 54, "advisory": "🟡 Poor. Broad roads provide better dispersal than old city." },
+            { "name": "Hazratganj Heritage Market", "category": "Historic Downtown Promenade", "lat": 26.848, "lon": 80.945, "aqi": 320, "pm25": 192, "pm10": 295, "no2": 78, "advisory": "⚠️ Very Poor. Heavy vehicular exhaust trapped in urban canyon." },
+            { "name": "Alambagh Bus Terminal", "category": "South Interstate Transit Hub", "lat": 26.815, "lon": 80.905, "aqi": 365, "pm25": 228, "pm10": 340, "no2": 85, "advisory": "🚨 Severe. Diesel bus emissions and construction dust." },
+            { "name": "Janeshwar Mishra Park Core", "category": "Eco-Sanctuary Green Lung", "lat": 26.835, "lon": 80.990, "aqi": 125, "pm25": 58, "pm10": 112, "no2": 28, "advisory": "🍃 Significant air filtration from 376 acres of wetlands and trees." },
+            { "name": "Indira Nagar Sector 14", "category": "North Residential Enclave", "lat": 26.885, "lon": 80.980, "aqi": 235, "pm25": 128, "pm10": 210, "no2": 62, "advisory": "⚠️ Poor. Indo-Gangetic winter inversion causes smoke trapping." }
+        ],
+        "schools": [
+            { "name": "City Montessori School (Gomti Nagar)", "desc": "Vishal Khand Campus", "aqi": 220, "badge": "HEPA ON MAX", "badgeCls": "bg-amber-950 text-amber-300 border-amber-800" },
+            { "name": "La Martiniere College (Boys)", "desc": "Historic 200-Acre Estate", "aqi": 160, "badge": "REDUCE OUTDOOR", "badgeCls": "bg-yellow-950 text-yellow-300 border-yellow-800" },
+            { "name": "Delhi Public School (Shaheed Path)", "desc": "Outer Buffer Corridor", "aqi": 235, "badge": "HEPA ON MAX", "badgeCls": "bg-amber-950 text-amber-300 border-amber-800" }
+        ]
+    },
+    "ahmedabad": {
+        "id": "ahmedabad",
+        "name": "Ahmedabad",
+        "state": "Gujarat",
+        "heroAQI": 194,
+        "badge": "MODERATE",
+        "badgeCls": "bg-yellow-100 text-yellow-800 border-yellow-300",
+        "tagline": "Sabarmati Riverfront & S.G. Highway Corridors",
+        "bounds": { "minLat": 22.95, "maxLat": 23.14, "minLon": 72.48, "maxLon": 72.68 },
+        "waterFeature": {
+            "name": "SABARMATI RIVER & RIVERFRONT",
+            "coords": [[23.12, 72.58], [23.07, 72.58], [23.03, 72.57], [22.98, 72.58]]
+        },
+        "greenFeature": {
+            "name": "KANKARIA LAKE & BOTANICAL PARK",
+            "center": [23.006, 72.602],
+            "radiusX": 55, "radiusY": 55, "angle": 0
+        },
+        "origin": "Kalupur Railway Station",
+        "destination": "S.G. Highway / Science City",
+        "routeA": {
+            "name": "Route A • Ashram Road / Income Tax Flyover Choke",
+            "badge": "POOR TRAFFIC",
+            "duration": 28,
+            "dist": 13.5,
+            "dose": "52.4",
+            "notes": "⚠️ High stop-and-go idling along <b>Income Tax junction & BRTS transit corridor</b>.",
+            "points": [
+                [23.028, 27.601], [23.040, 72.570], [23.055, 72.540], [23.080, 72.510]
+            ]
+        },
+        "routeB": {
+            "name": "Route B • Sabarmati Riverfront Promenade Bypass",
+            "badge": "-59% DOSE",
+            "duration": 31,
+            "diff": "+3m",
+            "dist": 14.2,
+            "dose": "21.5",
+            "notes": "🍃 Follows the <b>Sabarmati Riverfront promenade breeze</b> with zero traffic lights.",
+            "points": [
+                [23.028, 72.601], [23.032, 72.578], [23.065, 72.578], [23.078, 72.545],
+                [23.080, 72.510]
+            ]
+        },
+        "stations": [
+            { "name": "Vatva GIDC Industrial", "lat": 22.960, "lon": 72.635, "aqi": 268, "pm25": 145, "status": "Poor" },
+            { "name": "Maninagar CPCB Base", "lat": 22.998, "lon": 72.605, "aqi": 185, "pm25": 92, "status": "Moderate" },
+            { "name": "Satellite / Bodakdev", "lat": 23.035, "lon": 72.520, "aqi": 142, "pm25": 68, "status": "Moderate" },
+            { "name": "Sabarmati Riverfront North", "lat": 23.070, "lon": 72.580, "aqi": 88, "pm25": 38, "status": "Good" }
+        ],
+        "localities": [
+            { "name": "S.G. Highway / Prahlad Nagar", "category": "Corporate & Tech Highway", "lat": 23.015, "lon": 72.508, "aqi": 165, "pm25": 82, "pm10": 148, "no2": 45, "advisory": "🟡 Moderate air. Heavy automobile traffic on service roads." },
+            { "name": "Bodakdev / Sindhu Bhavan Rd", "category": "Upscale Dining & Living", "lat": 23.045, "lon": 72.515, "aqi": 135, "pm25": 64, "pm10": 118, "no2": 36, "advisory": "✅ Moderate. Good road widths and green setbacks." },
+            { "name": "Sabarmati Riverfront Walk", "category": "Promenade Water Corridor", "lat": 23.045, "lon": 72.575, "aqi": 82, "pm25": 35, "pm10": 72, "no2": 22, "advisory": "🌊 River breezes clear localized haze. Great for morning walks." },
+            { "name": "Naroda Industrial Area", "category": "East Manufacturing Cluster", "lat": 23.075, "lon": 72.655, "aqi": 285, "pm25": 162, "pm10": 245, "no2": 76, "advisory": "⚠️ Poor to Severe. Heavy manufacturing and logistics trucks." },
+            { "name": "Navrangpura / Gujarat University", "category": "Academic & Research Green Pocket", "lat": 23.038, "lon": 72.545, "aqi": 115, "pm25": 52, "pm10": 98, "no2": 30, "advisory": "✅ Shaded university tree avenues provide natural air buffer." }
+        ],
+        "schools": [
+            { "name": "Delhi Public School (Bopal)", "desc": "Western Suburb Green Belt", "aqi": 125, "badge": "CLEAR TO PLAY", "badgeCls": "bg-emerald-950 text-emerald-300 border-emerald-800" },
+            { "name": "St. Xavier's Loyola Hall", "desc": "Navrangpura • Tree Shaded", "aqi": 118, "badge": "CLEAR TO PLAY", "badgeCls": "bg-emerald-950 text-emerald-300 border-emerald-800" },
+            { "name": "Udgam School for Children", "desc": "Thaltej Commercial Edge", "aqi": 155, "badge": "MODERATE AIR", "badgeCls": "bg-yellow-950 text-yellow-300 border-yellow-800" }
+        ]
+    },
+    "jaipur": {
+        "id": "jaipur",
+        "name": "Jaipur",
+        "state": "Rajasthan",
+        "heroAQI": 182,
+        "badge": "MODERATE",
+        "badgeCls": "bg-yellow-100 text-yellow-800 border-yellow-300",
+        "tagline": "Aravalli Range Shield & Pink City Boulevards",
+        "bounds": { "minLat": 26.80, "maxLat": 27.02, "minLon": 75.70, "maxLon": 75.92 },
+        "waterFeature": {
+            "name": "MAN SAGAR JAL MAHAL LAKE",
+            "coords": [[26.96, 75.84], [26.95, 75.85], [26.96, 75.86]]
+        },
+        "greenFeature": {
+            "name": "CENTRAL PARK & NAHARGARH SANCTUARY",
+            "center": [26.905, 75.810],
+            "radiusX": 55, "radiusY": 70, "angle": 0.3
+        },
+        "origin": "Jaipur Junction Railway Station",
+        "destination": "Malviya Nagar / Gaurav Tower",
+        "routeA": {
+            "name": "Route A • Tonk Road Commercial Corridor Choke",
+            "badge": "MODERATE CHOKE",
+            "duration": 22,
+            "dist": 10.2,
+            "dose": "42.5",
+            "notes": "⚠️ Heavy bus transit & retail market idling on Tonk Road flyover.",
+            "points": [
+                [26.920, 75.790], [26.895, 75.800], [26.870, 75.810], [26.852, 75.818]
+            ]
+        },
+        "routeB": {
+            "name": "Route B • JLN Marg Academic & Central Park Clean Corridor",
+            "badge": "-58% DOSE",
+            "duration": 25,
+            "diff": "+3m",
+            "dist": 11.0,
+            "dose": "17.8",
+            "notes": "🍃 Passes wide green boulevards of <b>Jawahar Lal Nehru Marg & Smriti Van</b>.",
+            "points": [
+                [26.920, 75.790], [26.908, 75.812], [26.885, 75.815], [26.852, 75.818]
+            ]
+        },
+        "stations": [
+            { "name": "Adarsh Nagar CPCB", "lat": 26.900, "lon": 75.830, "aqi": 195, "pm25": 98, "status": "Moderate" },
+            { "name": "Shastri Nagar Hospital", "lat": 26.940, "lon": 75.790, "aqi": 215, "pm25": 115, "status": "Poor" },
+            { "name": "Sitapura Industrial Area", "lat": 26.775, "lon": 75.845, "aqi": 240, "pm25": 134, "status": "Poor" },
+            { "name": "Central Park Sanctuary", "lat": 26.905, "lon": 75.810, "aqi": 78, "pm25": 32, "status": "Good" }
+        ],
+        "localities": [
+            { "name": "C-Scheme / Ashok Nagar", "category": "Prime Shaded Heritage Living", "lat": 26.910, "lon": 75.805, "aqi": 98, "pm25": 42, "pm10": 85, "no2": 26, "advisory": "🍃 Very Clean. Broad tree canopy and proximity to Central Park." },
+            { "name": "Malviya Nagar / GT Bazaar", "category": "South Commercial & Student Hub", "lat": 26.852, "lon": 75.818, "aqi": 172, "pm25": 88, "pm10": 152, "no2": 44, "advisory": "🟡 Moderate air. Evening shopping creates local congestion." },
+            { "name": "Vaishali Nagar / Amrapali", "category": "West Residential Commercial", "lat": 26.905, "lon": 75.745, "aqi": 165, "pm25": 82, "pm10": 145, "no2": 40, "advisory": "🟡 Moderate. Western desert dust drift during pre-monsoon." },
+            { "name": "Walled Pink City / Badi Chaupar", "category": "Historic Dense Heritage Bazaar", "lat": 26.925, "lon": 75.830, "aqi": 230, "pm25": 125, "pm10": 205, "no2": 62, "advisory": "⚠️ Poor. Tight bazaar alleys trap rickshaw and scooter exhaust." },
+            { "name": "Nahargarh Biological Park", "category": "Aravalli Forest Mountain Ridge", "lat": 26.985, "lon": 75.845, "aqi": 62, "pm25": 25, "pm10": 55, "no2": 16, "advisory": "🌟 Mountain air buffer. Shields the northern city from dust." }
+        ],
+        "schools": [
+            { "name": "Maharaja Sawai Man Singh Vidyalaya", "desc": "JLN Marg • Green Corridor", "aqi": 105, "badge": "CLEAR TO PLAY", "badgeCls": "bg-emerald-950 text-emerald-300 border-emerald-800" },
+            { "name": "St. Xavier's Senior Secondary", "desc": "Bhagwan Das Road", "aqi": 112, "badge": "CLEAR TO PLAY", "badgeCls": "bg-emerald-950 text-emerald-300 border-emerald-800" },
+            { "name": "Jayshree Periwal High School", "desc": "Chitrakoot • West Suburban", "aqi": 158, "badge": "MODERATE AIR", "badgeCls": "bg-yellow-950 text-yellow-300 border-yellow-800" }
+        ]
+    }
+}
+
+# Write cities data to json for script access
+with open('/Users/aryansingh/.gemini/antigravity/scratch/vayupath/cities_data.json', 'w') as f:
+    json.dump(cities_data, f, indent=2)
+
+print("Saved cities_data.json successfully with 8 detailed metropolitan ecosystems.")

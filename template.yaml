@@ -1,0 +1,379 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  VayuPath: Pan-India Air Quality Tracking, Vulnerability Protection & School Safety Platform
+  Serverless SAM Architecture with Amazon Bedrock & Strands Agents SDK.
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+    Runtime: python3.11
+    Tracing: Active
+    Environment:
+      Variables:
+        STAGE: !Ref Stage
+        READINGS_TABLE: !Ref ReadingsTable
+        SCHOOLS_TABLE: !Ref SchoolsTable
+        SUBSCRIPTIONS_TABLE: !Ref SubscriptionsTable
+        CACHE_BUCKET: !Ref VayuPathCacheBucket
+        SNS_ALERTS_TOPIC_ARN: !Ref VayuPathAlertsTopic
+        DATAGOVIN_API_KEY: !Ref DatagovinApiKey
+        OPENAQ_API_KEY: !Ref OpenaqApiKey
+        WAQI_API_KEY: !Ref WaqiApiKey
+        FIRMS_MAP_KEY: !Ref FirmsMapKey
+        AWS_BEDROCK_MODEL_ID: !Ref BedrockModelId
+
+Parameters:
+  Stage:
+    Type: String
+    Default: dev
+  DatagovinApiKey:
+    Type: String
+    Default: ''
+    NoEcho: true
+    Description: CPCB data.gov.in API Key
+  OpenaqApiKey:
+    Type: String
+    Default: ''
+    NoEcho: true
+    Description: OpenAQ v3 API Key
+  WaqiApiKey:
+    Type: String
+    Default: ''
+    NoEcho: true
+    Description: World Air Quality Index Token
+  FirmsMapKey:
+    Type: String
+    Default: ''
+    NoEcho: true
+    Description: NASA FIRMS Map Key for Active Fire Satellites
+  BedrockModelId:
+    Type: String
+    Default: 'anthropic.claude-3-5-sonnet-20241022-v2:0'
+    Description: Amazon Bedrock Foundation Model for Strands Agent
+
+Resources:
+  # ==========================================
+  # STORAGE: DynamoDB Tables
+  # ==========================================
+  ReadingsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'vayupath-readings-${Stage}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: station_id
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+      KeySchema:
+        - AttributeName: station_id
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  SchoolsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'vayupath-schools-${Stage}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: school_id
+          AttributeType: S
+        - AttributeName: district
+          AttributeType: S
+      KeySchema:
+        - AttributeName: school_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: DistrictIndex
+          KeySchema:
+            - AttributeName: district
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  SubscriptionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'vayupath-subscriptions-${Stage}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: subscription_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: subscription_id
+          KeyType: HASH
+
+  # ==========================================
+  # STORAGE: S3 Bucket for GeoJSON Cache
+  # ==========================================
+  VayuPathCacheBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'vayupath-cache-${Stage}-${AWS::AccountId}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # ==========================================
+  # NOTIFICATIONS: SNS Topic
+  # ==========================================
+  VayuPathAlertsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub 'vayupath-alerts-topic-${Stage}'
+      DisplayName: 'VayuPath Bad-Air Health Advisory & School Alerts'
+
+  # ==========================================
+  # API GATEWAY
+  # ==========================================
+  VayuPathApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref Stage
+      Cors:
+        AllowMethods: "'GET,POST,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+        AllowOrigin: "'*'"
+
+  # ==========================================
+  # LAMBDA 1: AQI Ingestion & Tracking Service
+  # ==========================================
+  AqiServiceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/lambdas/aqi_service/
+      Handler: handler.lambda_handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ReadingsTable
+        - S3CrudPolicy:
+            BucketName: !Ref VayuPathCacheBucket
+      Events:
+        GetStations:
+          Type: Api
+          Properties:
+            RestApiId: !Ref VayuPathApi
+            Path: /api/aqi/stations
+            Method: GET
+        GetGrid:
+          Type: Api
+          Properties:
+            RestApiId: !Ref VayuPathApi
+            Path: /api/aqi/grid
+            Method: GET
+        GetRankings:
+          Type: Api
+          Properties:
+            RestApiId: !Ref VayuPathApi
+            Path: /api/aqi/rankings
+            Method: GET
+        GetLocation:
+          Type: Api
+          Properties:
+            RestApiId: !Ref VayuPathApi
+            Path: /api/aqi/location
+            Method: GET
+        SearchLocation:
+          Type: Api
+          Properties:
+            RestApiId: !Ref VayuPathApi
+            Path: /api/aqi/search
+            Method: GET
+
+  # ==========================================
+  # LAMBDA 2: Schools & GRAP Protocol Engine
+  # ==========================================
+  SchoolsServiceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/lambdas/schools_service/
+      Handler: handler.lambda_handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SchoolsTable
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt VayuPathAlertsTopic.TopicName
+      Events:
+        GetDashboard:
+          Type: Api
+          Properties:
+            RestApiId: !Ref VayuPathApi
+            Path: /api/schools/dashboard
+            Method: GET
+        GetReportCsv:
+          Type: Api
+          Properties:
+            RestApiId: !Ref VayuPathApi
+            Path: /api/schools/report.csv
+            Method: GET
+        UploadUdise:
+          Type: Api
+          Properties:
+            RestApiId: !Ref VayuPathApi
+            Path: /api/schools/upload-udise
+            Method: POST
+        SendAlert:
+          Type: Api
+          Properties:
+            RestApiId: !Ref VayuPathApi
+            Path: /api/schools/send-alert
+            Method: POST
+
+  # ==========================================
+  # LAMBDA 3: Exposure Tracker & Safe Routes
+  # ==========================================
+  ExposureRoutesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/lambdas/exposure_routes/
+      Handler: handler.lambda_handler
+      Events:
+        CalculateExposure:
+          Type: Api
+          Properties:
+            RestApiId: !Ref VayuPathApi
+            Path: /api/exposure/calculate
+            Method: POST
+        GetProfiles:
+          Type: Api
+          Properties:
+            RestApiId: !Ref VayuPathApi
+            Path: /api/exposure/profiles
+            Method: GET
+        NavigateRoutes:
+          Type: Api
+          Properties:
+            RestApiId: !Ref VayuPathApi
+            Path: /api/routes/navigate
+            Method: GET
+
+  # ==========================================
+  # LAMBDA 4: NASA FIRMS Stubble Burning Monitor
+  # ==========================================
+  StubbleMonitorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/lambdas/stubble_monitor/
+      Handler: handler.lambda_handler
+      Events:
+        GetHotspots:
+          Type: Api
+          Properties:
+            RestApiId: !Ref VayuPathApi
+            Path: /api/fires/hotspots
+            Method: GET
+        GetDrift:
+          Type: Api
+          Properties:
+            RestApiId: !Ref VayuPathApi
+            Path: /api/fires/drift
+            Method: GET
+        GetTrends:
+          Type: Api
+          Properties:
+            RestApiId: !Ref VayuPathApi
+            Path: /api/fires/trends
+            Method: GET
+
+  # ==========================================
+  # LAMBDA 5: Indoor Air & Infiltration Engine
+  # ==========================================
+  IndoorServiceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/lambdas/indoor_service/
+      Handler: handler.lambda_handler
+      Events:
+        ModelIndoor:
+          Type: Api
+          Properties:
+            RestApiId: !Ref VayuPathApi
+            Path: /api/indoor/model
+            Method: POST
+        IngestDiySensor:
+          Type: Api
+          Properties:
+            RestApiId: !Ref VayuPathApi
+            Path: /api/indoor/diy-sensor
+            Method: POST
+        GetDiySensor:
+          Type: Api
+          Properties:
+            RestApiId: !Ref VayuPathApi
+            Path: /api/indoor/diy-sensor
+            Method: GET
+
+  # ==========================================
+  # LAMBDA 6: Strands Agents SDK Air Advisor (Bedrock)
+  # ==========================================
+  StrandsAdvisorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/lambdas/strands_advisor/
+      Handler: agent.lambda_handler
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+                - bedrock:InvokeModelWithResponseStream
+              Resource: '*'
+      Events:
+        AdvisorChat:
+          Type: Api
+          Properties:
+            RestApiId: !Ref VayuPathApi
+            Path: /api/advisor/chat
+            Method: POST
+
+  # ==========================================
+  # LAMBDA 7: EventBridge Scheduled Ingest & Alerts Worker
+  # ==========================================
+  AlertsWorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/lambdas/alerts_worker/
+      Handler: handler.lambda_handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SubscriptionsTable
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt VayuPathAlertsTopic.TopicName
+      Events:
+        ScheduledIngestCron:
+          Type: Schedule
+          Properties:
+            Schedule: rate(30 minutes)
+            Name: VayuPathIngestAndAlertEvery30Min
+            Description: Ingests 30-min air readings and triggers SNS alerts for subscribers
+        SubscribeApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref VayuPathApi
+            Path: /api/alerts/subscribe
+            Method: POST
+        CheckApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref VayuPathApi
+            Path: /api/alerts/check
+            Method: GET
+
+Outputs:
+  ApiEndpoint:
+    Description: Base URL for VayuPath Serverless API Gateway
+    Value: !Sub 'https://${VayuPathApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}'
+  AlertsTopicArn:
+    Description: ARN of the SNS Topic for health warnings and school alerts
+    Value: !Ref VayuPathAlertsTopic
+  CacheBucketName:
+    Description: Name of S3 Cache Bucket
+    Value: !Ref VayuPathCacheBucket

@@ -1,0 +1,149 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: 'Samarkan';
+  src: url('/fonts/samarkan.woff') format('woff'),
+       url('/fonts/samarkan.ttf') format('truetype'),
+       url('https://fonts.cdnfonts.com/s/5790/SAMARN__.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+/* Custom fonts */
+.font-samarkan {
+  font-family: 'Samarkan', sans-serif;
+}
+.submark-font {
+  font-family: 'Cinzel', serif;
+}
+.mono {
+  font-family: 'Space Grotesk', monospace;
+}
+
+/* Background Gradients */
+.sky-fill {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, 
+    #3282cc 0%, 
+    #4a9ce2 18%, 
+    #6cb8ee 42%, 
+    #93d2f6 68%, 
+    #bfe8fb 86%, 
+    #e2f3fc 100%
+  );
+  z-index: 0;
+  pointer-events: none;
+}
+
+.sun-glow {
+  position: absolute;
+  top: 10%;
+  left: 45%;
+  width: 450px;
+  height: 450px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 247, 208, 0.45) 0%, rgba(255, 235, 175, 0.15) 50%, transparent 75%);
+  filter: blur(60px);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* VayuPath Samarkan Typography with Crisp Black Border as shown in mockup */
+.hero-title-vayu {
+  font-family: 'Samarkan', sans-serif;
+  background: linear-gradient(180deg, #FFFFFF 20%, #F8FAFC 70%, #E2E8F0 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: #FFFFFF;
+  -webkit-text-stroke: 2.5px #0a0e17;
+  paint-order: stroke fill;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.45));
+  letter-spacing: 0.03em;
+}
+
+.hero-title-path {
+  font-family: 'Samarkan', sans-serif;
+  background: linear-gradient(135deg, #10B981 0%, #34D399 50%, #6EE7B7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: #34D399;
+  -webkit-text-stroke: 2.5px #0a0e17;
+  paint-order: stroke fill;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.45));
+  letter-spacing: 0.03em;
+}
+
+.sky-glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 16px 36px -10px rgba(15, 23, 42, 0.15), 
+              0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Pixel Art Canvas with Seamless Vertical Alpha Blending */
+#pixelCanvas {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 100%;
+  min-width: 820px;
+  height: auto;
+  max-height: 58vh;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  display: block;
+  z-index: 2;
+  pointer-events: none;
+  /* Seamless vertical gradient mask: fades the top of the canvas into the blue sky */
+  -webkit-mask-image: linear-gradient(to bottom, 
+    transparent 0%, 
+    rgba(0, 0, 0, 0.08) 8%, 
+    rgba(0, 0, 0, 0.35) 20%, 
+    rgba(0, 0, 0, 0.72) 34%, 
+    rgba(0, 0, 0, 0.95) 48%, 
+    #000000 60%
+  );
+  mask-image: linear-gradient(to bottom, 
+    transparent 0%, 
+    rgba(0, 0, 0, 0.08) 8%, 
+    rgba(0, 0, 0, 0.35) 20%, 
+    rgba(0, 0, 0, 0.72) 34%, 
+    rgba(0, 0, 0, 0.95) 48%, 
+    #000000 60%
+  );
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Leaflet map fix */
+.leaflet-container {
+  font-family: inherit !important;
+  z-index: 1;
+}
